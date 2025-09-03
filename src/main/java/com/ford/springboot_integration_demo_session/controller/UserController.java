@@ -1,0 +1,47 @@
+package com.ford.springboot_integration_demo_session.controller;
+
+import com.ford.springboot_integration_demo_session.DTO.UserRequestDTO;
+import com.ford.springboot_integration_demo_session.DTO.UserResponseDTO;
+import com.ford.springboot_integration_demo_session.entity.Users;
+import com.ford.springboot_integration_demo_session.service.UserServiceImpl;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/users")
+public class UserController {
+    private final UserServiceImpl userService;
+
+    public UserController(UserServiceImpl userService) {
+        this.userService = userService;
+    }
+
+    @GetMapping
+    public List<UserResponseDTO> getAllUsers() {
+        return userService.getAllUsers();
+    }
+
+    @GetMapping("/{id}")
+    public UserResponseDTO getUserById(@PathVariable Long id) {
+        return userService.getUserById(id);
+    }
+
+    @PostMapping
+    public UserResponseDTO createUser(@RequestBody UserRequestDTO userRequest) {
+        return userService.createUser(userRequest);
+    }
+
+    @PutMapping("/{id}")
+    public UserResponseDTO updateUser(@PathVariable Long id,
+                                      @RequestBody UserRequestDTO userRequest) {
+        return userService.updateUser(id, userRequest);
+    }
+
+    @DeleteMapping("/{id}")
+    public String deleteUser(@PathVariable Long id) {
+        userService.deleteUser(id);
+        return "User deleted successfully";
+    }
+
+}
