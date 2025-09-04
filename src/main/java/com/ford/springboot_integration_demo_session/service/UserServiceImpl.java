@@ -17,17 +17,39 @@ public class UserServiceImpl {
     private final UserRepository userRepository;
     private final RedisTemplate redisTemplate;
     private static final String USER_HASH_KEY = "USER";
+    private final UserEventProducer userEventProducer;
 
-    public UserServiceImpl(UserRepository userRepository, RedisTemplate redisTemplate) {
+
+    public UserServiceImpl(UserRepository userRepository, UserEventProducer userEventProducer, RedisTemplate redisTemplate) {
         this.userRepository = userRepository;
         this.redisTemplate = redisTemplate;
+        this.userEventProducer = userEventProducer;
+    }
+
+    public UserResponseDTO createUser(UserRequestDTO request) {
+        Users user = Users.builder()
+                .name(request.name())
+                .email(request.email())
+                .build();
+
+        Users savedUser = userRepository.save(user);
+        UserResponseDTO responseDTO=mapToResponse(savedUser);
+
+        //redis
+        redisTemplate.opsForValue().set(USER_HASH_KEY + ":" + responseDTO.id(), responseDTO, Duration.ofMinutes(1));
+
+        // Publish event to Kafka
+        String eventMessage = "User created: " + savedUser.getId() + ", " + savedUser.getEmail();
+        userEventProducer.sendUserCreatedEvent(eventMessage);
+
+        return responseDTO;
     }
 
     public List<UserResponseDTO> getAllUsers() {
         return userRepository.findAll()
                 .stream()
                 .map(this::mapToResponse)
-                .toList(); // Java 16+ has .toList()
+                .toList();
     }
 
     public UserResponseDTO getUserById(Long id) {
@@ -46,16 +68,6 @@ public class UserServiceImpl {
         return response;
     }
 
-    public UserResponseDTO createUser(UserRequestDTO request) {
-        Users user = new Users();
-        user.setName(request.name());
-        user.setEmail(request.email());
-        UserResponseDTO response = mapToResponse(userRepository.save(user));
-        //Save to redis
-        //redisTemplate.opsForHash().put(USER_HASH_KEY,user.getId().toString(),response);
-        redisTemplate.opsForValue().set(USER_HASH_KEY + ":" + response.id(), response, Duration.ofMinutes(1));
-        return response;
-    }
 
     public UserResponseDTO updateUser(Long id, UserRequestDTO request) {
         Users user = userRepository.findById(id)

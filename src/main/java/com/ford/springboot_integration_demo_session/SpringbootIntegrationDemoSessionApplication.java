@@ -2,6 +2,7 @@ package com.ford.springboot_integration_demo_session;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cache.annotation.EnableCaching;
 
 @SpringBootApplication
 public class SpringbootIntegrationDemoSessionApplication {
