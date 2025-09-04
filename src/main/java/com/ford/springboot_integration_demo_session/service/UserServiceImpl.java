@@ -8,7 +8,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.List;
+
 @Service
 @Slf4j
 public class UserServiceImpl {
@@ -29,7 +31,8 @@ public class UserServiceImpl {
     }
 
     public UserResponseDTO getUserById(Long id) {
-        Object cachedUser = redisTemplate.opsForHash().get(USER_HASH_KEY, id.toString());
+        //Object cachedUser = redisTemplate.opsForHash().get(USER_HASH_KEY, id.toString());
+        Object cachedUser = redisTemplate.opsForValue().get(USER_HASH_KEY + ":" + id);
         if (cachedUser != null) {
             log.info("Data return from cache for user id {}", id);
             return (UserResponseDTO) cachedUser;
@@ -38,7 +41,8 @@ public class UserServiceImpl {
         Users user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         UserResponseDTO response = mapToResponse(user);
-        redisTemplate.opsForHash().put(USER_HASH_KEY, id.toString(), response);
+//        redisTemplate.opsForHash().put(USER_HASH_KEY, id.toString(), response);
+        redisTemplate.opsForValue().set(USER_HASH_KEY + ":" + id, response, Duration.ofMinutes(1));
         return response;
     }
 
@@ -48,7 +52,8 @@ public class UserServiceImpl {
         user.setEmail(request.email());
         UserResponseDTO response = mapToResponse(userRepository.save(user));
         //Save to redis
-        redisTemplate.opsForHash().put(USER_HASH_KEY,user.getId().toString(),response);
+        //redisTemplate.opsForHash().put(USER_HASH_KEY,user.getId().toString(),response);
+        redisTemplate.opsForValue().set(USER_HASH_KEY + ":" + response.id(), response, Duration.ofMinutes(1));
         return response;
     }
 
