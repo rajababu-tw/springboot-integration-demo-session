@@ -4,16 +4,21 @@ import com.ford.springboot_integration_demo_session.DTO.UserRequestDTO;
 import com.ford.springboot_integration_demo_session.DTO.UserResponseDTO;
 import com.ford.springboot_integration_demo_session.entity.Users;
 import com.ford.springboot_integration_demo_session.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 @Service
+@Slf4j
 public class UserServiceImpl {
     private final UserRepository userRepository;
+    private final RedisTemplate redisTemplate;
+    private static final String USER_HASH_KEY = "USER";
 
-    public UserServiceImpl(UserRepository userRepository) {
+    public UserServiceImpl(UserRepository userRepository, RedisTemplate redisTemplate) {
         this.userRepository = userRepository;
+        this.redisTemplate = redisTemplate;
     }
 
     public List<UserResponseDTO> getAllUsers() {
@@ -24,16 +29,27 @@ public class UserServiceImpl {
     }
 
     public UserResponseDTO getUserById(Long id) {
+        Object cachedUser = redisTemplate.opsForHash().get(USER_HASH_KEY, id.toString());
+        if (cachedUser != null) {
+            log.info("Data return from cache for user id {}", id);
+            return (UserResponseDTO) cachedUser;
+        }
+        log.warn("Cache miss for user id={}, querying DB", id);
         Users user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        return mapToResponse(user);
+        UserResponseDTO response = mapToResponse(user);
+        redisTemplate.opsForHash().put(USER_HASH_KEY, id.toString(), response);
+        return response;
     }
 
     public UserResponseDTO createUser(UserRequestDTO request) {
         Users user = new Users();
         user.setName(request.name());
         user.setEmail(request.email());
-        return mapToResponse(userRepository.save(user));
+        UserResponseDTO response = mapToResponse(userRepository.save(user));
+        //Save to redis
+        redisTemplate.opsForHash().put(USER_HASH_KEY,user.getId().toString(),response);
+        return response;
     }
 
     public UserResponseDTO updateUser(Long id, UserRequestDTO request) {
