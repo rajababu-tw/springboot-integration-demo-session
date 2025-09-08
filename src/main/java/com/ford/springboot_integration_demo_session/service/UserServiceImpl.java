@@ -23,7 +23,7 @@ public class UserServiceImpl {
     private final UserEventProducer userEventProducer;
     private final NotificationClient notificationClient;
 
-    public UserServiceImpl(UserRepository userRepository, RedisTemplate redisTemplate, RedisMessagePublisher redisMessagePublisher, UserEventProducer userEventProducer) {
+    public UserServiceImpl(UserRepository userRepository, RedisTemplate redisTemplate, RedisMessagePublisher redisMessagePublisher, UserEventProducer userEventProducer,NotificationClient notificationClient) {
         this.userRepository = userRepository;
         this.redisTemplate = redisTemplate;
         this.redisMessagePublisher = redisMessagePublisher;
@@ -41,19 +41,16 @@ public class UserServiceImpl {
         UserResponseDTO responseDTO=mapToResponse(savedUser);
         UserCreatedEvent userCreatedEvent=new UserCreatedEvent(responseDTO.id(),responseDTO.name(),responseDTO.email());
 
-        //redis
-        redisTemplate.opsForValue().set(USER_HASH_KEY + ":" + responseDTO.id(), responseDTO, Duration.ofMinutes(1));
 
         // Publish event to Kafka - Event Driven Asynchronous Call
         userEventProducer.sendUserCreatedEvent(userCreatedEvent);
 
         //Synchronous Call - Feign Client
         notificationClient.sendWelcomeMessage(userCreatedEvent);
+
+        //Redis
         redisTemplate.opsForValue().set(USER_HASH_KEY + ":" + responseDTO.id(), responseDTO, Duration.ofMinutes(2));
         redisMessagePublisher.publish(responseDTO.toString());
-        // Publish event to Kafka
-        String eventMessage = "User created: " + savedUser.getId() + ", " + savedUser.getEmail();
-        userEventProducer.sendUserCreatedEvent(eventMessage);
 
         return responseDTO;
     }
