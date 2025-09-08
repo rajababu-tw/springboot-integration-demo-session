@@ -7,6 +7,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 
 @SpringBootApplication
 @EnableFeignClients
+@EnableCaching
 public class SpringbootIntegrationDemoSessionApplication {
 
 	public static void main(String[] args) {

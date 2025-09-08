@@ -3,7 +3,9 @@ package com.ford.springboot_integration_demo_session.controller;
 import com.ford.springboot_integration_demo_session.DTO.UserRequestDTO;
 import com.ford.springboot_integration_demo_session.DTO.UserResponseDTO;
 import com.ford.springboot_integration_demo_session.entity.Users;
+import com.ford.springboot_integration_demo_session.service.UserService;
 import com.ford.springboot_integration_demo_session.service.UserServiceImpl;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -12,9 +14,16 @@ import java.util.List;
 @RequestMapping("/api/users")
 public class UserController {
     private final UserServiceImpl userService;
+    private final UserService userServiceImplWithAnnotations;
+    @Autowired
+    public UserController(UserServiceImpl userServiceImpl, UserService userService, UserServiceImpl userService1, UserService userServiceImplWithAnnotations) {
+        this.userService = userService1;
+        this.userServiceImplWithAnnotations = userServiceImplWithAnnotations;
+    }
 
-    public UserController(UserServiceImpl userService) {
+    public UserController(UserServiceImpl userService, UserService userServiceImplWithAnnotations) {
         this.userService = userService;
+        this.userServiceImplWithAnnotations = userServiceImplWithAnnotations;
     }
 
     @GetMapping
@@ -43,5 +52,11 @@ public class UserController {
         userService.deleteUser(id);
         return "User deleted successfully";
     }
+
+    @GetMapping("/annotation/{id}")
+    public Users getUserByIdWithAnnotation(@PathVariable Long id) {
+        return userServiceImplWithAnnotations.getUserById(id);
+    }
+
 
 }

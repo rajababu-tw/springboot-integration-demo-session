@@ -4,6 +4,7 @@ import com.ford.springboot_integration_demo_session.DTO.UserCreatedEvent;
 import com.ford.springboot_integration_demo_session.DTO.UserRequestDTO;
 import com.ford.springboot_integration_demo_session.DTO.UserResponseDTO;
 import com.ford.springboot_integration_demo_session.entity.Users;
+import com.ford.springboot_integration_demo_session.publisher.RedisMessagePublisher;
 import com.ford.springboot_integration_demo_session.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -17,13 +18,15 @@ import java.util.List;
 public class UserServiceImpl {
     private final UserRepository userRepository;
     private final RedisTemplate redisTemplate;
+    private final RedisMessagePublisher redisMessagePublisher;
     private static final String USER_HASH_KEY = "USER";
     private final UserEventProducer userEventProducer;
     private final NotificationClient notificationClient;
 
-    public UserServiceImpl(UserRepository userRepository, UserEventProducer userEventProducer, RedisTemplate redisTemplate, NotificationClient notificationClient) {
+    public UserServiceImpl(UserRepository userRepository, RedisTemplate redisTemplate, RedisMessagePublisher redisMessagePublisher, UserEventProducer userEventProducer) {
         this.userRepository = userRepository;
         this.redisTemplate = redisTemplate;
+        this.redisMessagePublisher = redisMessagePublisher;
         this.userEventProducer = userEventProducer;
         this.notificationClient = notificationClient;
     }
@@ -46,6 +49,11 @@ public class UserServiceImpl {
 
         //Synchronous Call - Feign Client
         notificationClient.sendWelcomeMessage(userCreatedEvent);
+        redisTemplate.opsForValue().set(USER_HASH_KEY + ":" + responseDTO.id(), responseDTO, Duration.ofMinutes(2));
+        redisMessagePublisher.publish(responseDTO.toString());
+        // Publish event to Kafka
+        String eventMessage = "User created: " + savedUser.getId() + ", " + savedUser.getEmail();
+        userEventProducer.sendUserCreatedEvent(eventMessage);
 
         return responseDTO;
     }
@@ -54,7 +62,7 @@ public class UserServiceImpl {
         return userRepository.findAll()
                 .stream()
                 .map(this::mapToResponse)
-                .toList();
+                .toList(); // Java 16+ has .toList()
     }
 
     public UserResponseDTO getUserById(Long id) {
