@@ -1,5 +1,5 @@
 1. This is a basic demo project (User Management) to showcase how different commonly used technology is integrated with springboot application.This is just for development purpose.
-2. Run the **`docker-compose-up`** -d command first , it will start kafka, redis and postgres.
+2. Run the **`docker-compose-up -d`** command first , it will start kafka, redis and postgres.
 3. Run the application.
 4. Run the notification service application -> https://github.com/rajababu-tw/springboot-integration-demo-notification-service
 4.Sample API request for user creation :
