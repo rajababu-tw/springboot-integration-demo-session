@@ -1,5 +1,6 @@
 package com.ford.springboot_integration_demo_session.service;
 
+import com.ford.springboot_integration_demo_session.DTO.UserCreatedEvent;
 import com.ford.springboot_integration_demo_session.DTO.UserRequestDTO;
 import com.ford.springboot_integration_demo_session.DTO.UserResponseDTO;
 import com.ford.springboot_integration_demo_session.entity.Users;
@@ -18,12 +19,13 @@ public class UserServiceImpl {
     private final RedisTemplate redisTemplate;
     private static final String USER_HASH_KEY = "USER";
     private final UserEventProducer userEventProducer;
+    private final NotificationClient notificationClient;
 
-
-    public UserServiceImpl(UserRepository userRepository, UserEventProducer userEventProducer, RedisTemplate redisTemplate) {
+    public UserServiceImpl(UserRepository userRepository, UserEventProducer userEventProducer, RedisTemplate redisTemplate, NotificationClient notificationClient) {
         this.userRepository = userRepository;
         this.redisTemplate = redisTemplate;
         this.userEventProducer = userEventProducer;
+        this.notificationClient = notificationClient;
     }
 
     public UserResponseDTO createUser(UserRequestDTO request) {
@@ -34,13 +36,16 @@ public class UserServiceImpl {
 
         Users savedUser = userRepository.save(user);
         UserResponseDTO responseDTO=mapToResponse(savedUser);
+        UserCreatedEvent userCreatedEvent=new UserCreatedEvent(responseDTO.id(),responseDTO.name(),responseDTO.email());
 
         //redis
         redisTemplate.opsForValue().set(USER_HASH_KEY + ":" + responseDTO.id(), responseDTO, Duration.ofMinutes(1));
 
-        // Publish event to Kafka
-        String eventMessage = "User created: " + savedUser.getId() + ", " + savedUser.getEmail();
-        userEventProducer.sendUserCreatedEvent(eventMessage);
+        // Publish event to Kafka - Event Driven Asynchronous Call
+        userEventProducer.sendUserCreatedEvent(userCreatedEvent);
+
+        //Synchronous Call - Feign Client
+        notificationClient.sendWelcomeMessage(userCreatedEvent);
 
         return responseDTO;
     }
